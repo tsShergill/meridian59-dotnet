@@ -17,6 +17,8 @@ namespace Meridian59.BgfEditor
         public const string STR_REMOVEFRAME = "Remove frame";
         public const string STR_ERRORSTILLINKED = "Can't remove. Still linked in a group!";
 
+        ProgressForm progress;
+
         public BgfBitmap SelectedFrame
         {
             get
@@ -75,9 +77,26 @@ namespace Meridian59.BgfEditor
                 Program.ShowFrame(true, bgfBitmap.GetBitmap(), picFrameImage);
         }
 
+        #region Frame Buttons
         protected void OnFrameAddClick(object sender, EventArgs e)
         {
             fdAddFrame.ShowDialog();
+        }
+
+        protected void OnFileDialogAddFrameFileOk(object sender, CancelEventArgs e)
+        {
+            if (backgroundWorker1.IsBusy != true)
+            {
+                //progress = new ProgressForm();
+                //progress.Show();
+                //progress.Canceled += new EventHandler<EventArgs>(buttonCancel_Click);
+                backgroundWorker1.RunWorkerAsync();
+            }
+        }
+
+        protected void OnFrameDuplicateClick(object sender, EventArgs e)
+        {
+           fdAddFrame.ShowDialog();
         }
 
         protected void OnFrameRemoveClick(object sender, EventArgs e)
@@ -172,6 +191,7 @@ namespace Meridian59.BgfEditor
                 }
             }
         }
+        #endregion
 
         protected void OnHotspotAddClick(object sender, EventArgs e)
         {
@@ -493,34 +513,6 @@ namespace Meridian59.BgfEditor
             Program.Load(fdOpenFile.FileName);
         }
 
-        protected void OnFileDialogAddFrameFileOk(object sender, CancelEventArgs e)
-        {
-            // load bitmap from file
-            Bitmap bitmap = new Bitmap(fdAddFrame.FileName);
-
-            // get pixels
-            byte[] pixelData = BgfBitmap.BitmapToPixelData(bitmap);
-
-            // create BgfBitmap
-            BgfBitmap bgfBitmap = new BgfBitmap(
-                (uint)Program.CurrentFile.Frames.Count + 1,
-                Program.CurrentFile.Version,
-                (uint)bitmap.Width,
-                (uint)bitmap.Height,
-                0,
-                0,
-                new BgfBitmapHotspot[0],
-                false,
-                0,
-                pixelData);
-
-            // cleanp temporary bitmap
-            bitmap.Dispose();
-
-            // add to frames
-            Program.CurrentFile.Frames.Add(bgfBitmap);
-        }
-
         protected void OnFileDialogSaveFileOk(object sender, CancelEventArgs e)
         {
             // save to file
@@ -600,5 +592,62 @@ namespace Meridian59.BgfEditor
             v.DataSource = Program.RoomObject;
             v.Show();
         }
+
+        private void buttonCancel_Click(object sender, EventArgs e)
+        {
+            if (backgroundWorker1.WorkerSupportsCancellation == true)
+            {
+                backgroundWorker1.CancelAsync();
+                progress.Close();
+            }
+        }
+
+        public void backgroundWorker1_DoWork(object sender, DoWorkEventArgs e)
+        {
+            foreach (String file in fdAddFrame.FileNames)
+            {
+                importImage(file);
+            }
+        }
+
+        private void backgroundWorker1_ProgressChanged(object sender, ProgressChangedEventArgs e)
+        {
+            progress.Message = "In progress, please wait... " + e.ProgressPercentage.ToString() + "%";
+            progress.ProgressValue = e.ProgressPercentage;
+        }
+
+        private void backgroundWorker1_RunWorkerCompleted(object sender, RunWorkerCompletedEventArgs e)
+        {
+            progress.Close();
+        }
+
+        private void importImage(string file)
+        {
+            // load bitmap from file
+            Bitmap bitmap = new Bitmap(file);
+
+            // get pixels
+            byte[] pixelData = BgfBitmap.BitmapToPixelData(bitmap);
+
+            // create BgfBitmap
+            BgfBitmap bgfBitmap = new BgfBitmap(
+                (uint)Program.CurrentFile.Frames.Count + 1,
+                Program.CurrentFile.Version,
+                (uint)bitmap.Width,
+                (uint)bitmap.Height,
+                0,
+                0,
+                new BgfBitmapHotspot[0],
+                false,
+                0,
+                pixelData);
+
+            // cleanp temporary bitmap
+            bitmap.Dispose();
+
+            // add to frames
+            Program.CurrentFile.Frames.Add(bgfBitmap);
+        }
     }
+
 }
